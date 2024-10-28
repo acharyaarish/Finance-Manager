@@ -1,175 +1,245 @@
-import React, { useState, useEffect } from 'react';
-import { TextField, Button, Typography, Snackbar, Alert, Box } from '@mui/material';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  TextField,
+  Button,
+  Typography,
+  Snackbar,
+  Alert,
+  Box,
+  Card,
+  Grid,
+  Tooltip,
+  IconButton,
+  LinearProgress,
+  Divider,
+  Stack,
+} from '@mui/material';
+import { styled, ThemeProvider } from '@mui/material/styles';
 import SavingsGoal from './SavingsGoal';
 import { db, auth } from './firebase';
 import { Bar } from 'react-chartjs-2';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-
-// Register Chart.js components for usage in the Bar chart
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+import { lightTheme, darkTheme } from './themes';
+import FoodIcon from '@mui/icons-material/Fastfood';
+import TransportIcon from '@mui/icons-material/DirectionsCar';
+import HealthIcon from '@mui/icons-material/LocalHospital';
+import EntertainmentIcon from '@mui/icons-material/Movie';
+import MiscIcon from '@mui/icons-material/Category';
+import LogoutIcon from '@mui/icons-material/Logout';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip as ChartTooltip, Legend } from 'chart.js';
 
 // Register necessary Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+Chart.register(CategoryScale, LinearScale, BarElement, Title, ChartTooltip, Legend);
+
+// Styled button with animation for modern button effects
+const ModernButton = styled(Button)(({ theme }) => ({
+  transition: 'transform 0.2s, background-color 0.3s',
+  '&:hover': {
+    transform: 'scale(1.05)',
+    backgroundColor: theme.palette.primary.dark,
+  },
+}));
 
 const Dashboard = () => {
-  // State variables for paycheck, expenses, savings goal, and notifications
-  const [paycheck, setPaycheck] = useState(0); // Store the paycheck amount
-  const [expenses, setExpenses] = useState([0, 0, 0, 0, 0]);  // Initialize expenses as an array of zeros
-  const [savingsGoal, setSavingsGoal] = useState(0);  // Store the savings goal amount
-  const [openSavingsGoal, setOpenSavingsGoal] = useState(false); // State to control the savings goal modal visibility
-  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' }); // Notification state
+  const [paycheck, setPaycheck] = useState(0);
+  const [expenses, setExpenses] = useState([0, 0, 0, 0, 0]);
+  const [savingsGoal, setSavingsGoal] = useState(0);
+  const [openSavingsGoal, setOpenSavingsGoal] = useState(false);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+  const [theme, setTheme] = useState('light');
 
-  // Labels for different expense categories
-  const expenseLabels = ['Food', 'Transport', 'Health', 'Entertainment', 'Miscellaneous'];
+  const expenseLabels = useMemo(
+    () => [
+      { label: 'Food', icon: <FoodIcon /> },
+      { label: 'Transport', icon: <TransportIcon /> },
+      { label: 'Health', icon: <HealthIcon /> },
+      { label: 'Entertainment', icon: <EntertainmentIcon /> },
+      { label: 'Miscellaneous', icon: <MiscIcon /> },
+    ],
+    []
+  );
 
-  // Get the current user's ID
   const userId = auth.currentUser?.uid;
+  const themeObject = useMemo(() => (theme === 'dark' ? darkTheme : lightTheme), [theme]);
 
-  // Fetch existing user data from Firestore when the component mounts
+  const totalExpenses = useMemo(() => expenses.reduce((acc, curr) => acc + Number(curr), 0), [expenses]);
+  const savingsProgress = useMemo(() => (savingsGoal ? (totalExpenses / savingsGoal) * 100 : 0), [totalExpenses, savingsGoal]);
+
   useEffect(() => {
     const fetchUserData = async () => {
       if (userId) {
-        const docRef = doc(db, 'users', userId); // Reference to the user's document in Firestore
-        const docSnap = await getDoc(docRef); // Get the document snapshot
+        const docRef = doc(db, 'users', userId);
+        const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          const data = docSnap.data(); // Fetch the data from the snapshot
-          setPaycheck(data.paycheck || 0); // Set the paycheck amount or default to 0
-          // Ensure expenses is always an array of numbers
-          setExpenses(Array.isArray(data.expenses) ? data.expenses : [0, 0, 0, 0, 0]); // Set expenses, default to zeros if invalid
-          setSavingsGoal(data.savingsGoal || 0);  // Set the savings goal or default to 0
-        } else {
-          // If the document doesn't exist, initialize with default values
-          setExpenses([0, 0, 0, 0, 0]);
-          setSavingsGoal(0);
+          const data = docSnap.data();
+          setPaycheck(data.paycheck || 0);
+          setExpenses(Array.isArray(data.expenses) ? data.expenses : [0, 0, 0, 0, 0]);
+          setSavingsGoal(data.savingsGoal || 0);
         }
       }
     };
-    fetchUserData(); // Call the fetch function
+    fetchUserData();
   }, [userId]);
 
-  // Calculate the total expenses by summing up the expenses array
-  const totalExpenses = expenses.reduce((acc, curr) => acc + Number(curr), 0);  
+  const handleNotification = useCallback(() => {
+    const isSuccess = paycheck > totalExpenses;
+    setNotification({
+      open: true,
+      message: isSuccess ? 'Great! Your paycheck covers your expenses 😄' : 'Oops! Expenses exceed your paycheck 😔',
+      severity: isSuccess ? 'success' : 'error',
+    });
+  }, [paycheck, totalExpenses]);
 
-  // Handle notifications based on paycheck and expenses comparison
-  const handleNotification = () => {
-    if (paycheck > totalExpenses) {
-      setNotification({ open: true, message: 'Great! Your paycheck covers your expenses 😄', severity: 'success' });
-    } else {
-      setNotification({ open: true, message: 'Oops! Expenses exceed your paycheck 😔', severity: 'error' });
-    }
-  };
-
-  // Save user data to Firestore
-  const handleSaveData = async () => {
+  const handleSaveData = useCallback(async () => {
     if (userId) {
       try {
         await setDoc(doc(db, 'users', userId), {
           paycheck,
-          expenses,  // Save the expenses array
-          savingsGoal,  // Save the savings goal
+          expenses,
+          savingsGoal,
         });
         setNotification({ open: true, message: 'Data saved successfully!', severity: 'success' });
       } catch (error) {
         setNotification({ open: true, message: 'Failed to save data!', severity: 'error' });
       }
     }
-  };
+  }, [userId, paycheck, expenses, savingsGoal]);
 
-  // Handle user logout
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     signOut(auth)
-      .then(() => {
-        window.location.href = '/'; // Redirect to the home page after logout
-      })
-      .catch((error) => {
-        setNotification({ open: true, message: 'Failed to log out!', severity: 'error' });
-      });
-  };
+      .then(() => (window.location.href = '/'))
+      .catch(() => setNotification({ open: true, message: 'Failed to log out!', severity: 'error' }));
+  }, []);
 
-  // Data for the Bar chart
-  const data = {
-    labels: [...expenseLabels, 'Savings Goal'],  // Labels for the chart include expense categories and savings goal
+  const data = useMemo(() => ({
+    labels: [...expenseLabels.map((e) => e.label), 'Savings Goal'],
     datasets: [
       {
         label: 'Expenses & Savings',
-        data: [...expenses, savingsGoal],  // Data includes expenses and the savings goal
-        backgroundColor: ['#3f51b5', '#ff4081', '#4caf50', '#ff9800', '#9c27b0', '#000000'], // Colors for each bar
+        data: [...expenses, savingsGoal],
+        backgroundColor: ['#3f51b5', '#ff4081', '#4caf50', '#ff9800', '#9c27b0', '#000000'],
       },
     ],
-  };
+  }), [expenses, savingsGoal, expenseLabels]);
 
   return (
-    <Box sx={{ padding: 4 }}> {/* Container with padding */}
-      <Typography variant="h4" gutterBottom>Personal Finance Dashboard</Typography>
+    <ThemeProvider theme={themeObject}>
+      <Box sx={{ paddingX: 4, paddingBottom: 4, backgroundColor: 'background.default', color: 'text.primary', minHeight: '100vh' }}>
+        
+        {/* Theme Toggle and Logout positioned for usability */}
+        <Stack direction="row" justifyContent="space-between" sx={{ mb: 3 }}>
+          <Tooltip title="Toggle Theme">
+            <IconButton onClick={() => setTheme(prev => (prev === 'light' ? 'dark' : 'light'))}>
+              <Brightness4Icon sx={{ fontSize: 28, color: theme === 'light' ? 'primary.main' : 'secondary.main' }} />
+            </IconButton>
+          </Tooltip>
 
-      {/* Input for paycheck */}
-      <TextField
-        label="Paycheck"
-        type="number"
-        value={paycheck}
-        onChange={(e) => setPaycheck(Number(e.target.value))} // Update paycheck state
-        fullWidth
-        margin="normal"
-      />
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'error.main' }}>Logout</Typography>
+            <Tooltip title="Logout">
+              <IconButton onClick={handleLogout} color="error">
+                <LogoutIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Stack>
 
-      {/* Input fields for each expense category */}
-      {expenseLabels.map((label, index) => (
-        <TextField
-          key={label}
-          label={label}
-          type="number"
-          value={expenses[index]}  // Match expense value by index
-          onChange={(e) => {
-            const newExpenses = [...expenses]; // Create a copy of the expenses array
-            newExpenses[index] = Number(e.target.value);  // Update the correct index with new value
-            setExpenses(newExpenses); // Update state with the new expenses array
-          }}
-          fullWidth
-          margin="normal"
-        />
-      ))}
+        {/* Monthly Income Section */}
+        <Typography variant="h5" fontWeight="medium" sx={{ mb: 2 }}>Monthly Income</Typography>
+        <Card sx={{ padding: 3, marginBottom: 3, backgroundColor: 'background.paper', boxShadow: 3 }}>
+          <TextField
+            label="Paycheck"
+            type="number"
+            value={paycheck}
+            onChange={(e) => setPaycheck(Number(e.target.value))}
+            fullWidth
+            margin="normal"
+          />
+        </Card>
 
-      {/* Button to open the savings goal modal */}
-      <Button variant="contained" onClick={() => setOpenSavingsGoal(true)} sx={{ marginTop: 2 }}>
-        Set Savings Goal
-      </Button>
-      {/* SavingsGoal modal for setting the savings goal */}
-      <SavingsGoal open={openSavingsGoal} handleClose={() => setOpenSavingsGoal(false)} setGoal={setSavingsGoal} />
+        {/* Expenses Section */}
+        <Typography variant="h5" fontWeight="medium" sx={{ mb: 2 }}>Expenses</Typography>
+        <Grid container spacing={2} sx={{ marginBottom: 4 }}>
+          {expenseLabels.map(({ label, icon }, index) => (
+            <Grid item xs={12} sm={6} md={4} lg={2.4} key={label}>
+              <Card
+                sx={{
+                  padding: 2,
+                  backgroundColor: 'background.paper',
+                  display: 'flex',
+                  alignItems: 'center',
+                  boxShadow: 1,
+                }}
+              >
+                <Tooltip title={label}>
+                  <IconButton edge="start" sx={{ marginRight: 1, color: 'primary.main' }}>{icon}</IconButton>
+                </Tooltip>
+                <TextField
+                  label={label}
+                  type="number"
+                  value={expenses[index]}
+                  onChange={(e) => {
+                    const newExpenses = [...expenses];
+                    newExpenses[index] = Number(e.target.value);
+                    setExpenses(newExpenses);
+                  }}
+                  fullWidth
+                  inputProps={{ min: 0 }}
+                />
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
 
-      {/* Notification for user feedback */}
-      <Snackbar open={notification.open} autoHideDuration={4000} onClose={() => setNotification({ ...notification, open: false })}>
-        <Alert severity={notification.severity}>{notification.message}</Alert>
-      </Snackbar>
+        <Divider sx={{ my: 4 }} />
 
-      {/* Bar chart for displaying expenses and savings */}
-      <Box sx={{ marginTop: 4 }}>
-        <Bar data={data} />
+        <ModernButton
+          variant="contained"
+          onClick={() => setOpenSavingsGoal(true)}
+          sx={{ marginBottom: 2, backgroundColor: 'primary.main', color: 'white' }}
+        >
+          Set Savings Goal
+        </ModernButton>
+        <SavingsGoal open={openSavingsGoal} handleClose={() => setOpenSavingsGoal(false)} setGoal={setSavingsGoal} />
+
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={4000}
+          onClose={() => setNotification({ ...notification, open: false })}
+        >
+          <Alert severity={notification.severity}>{notification.message}</Alert>
+        </Snackbar>
+
+        <Box sx={{ my: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Typography variant="subtitle1" sx={{ marginBottom: 1, fontWeight: 'bold' }}>Savings Progress</Typography>
+          <LinearProgress
+            variant="determinate"
+            value={savingsProgress}
+            sx={{ height: 12, borderRadius: 5, width: '80%', backgroundColor: 'grey.300', color: 'primary.main' }}
+          />
+          <Typography variant="caption" sx={{ marginTop: 1 }}>{Math.round(savingsProgress)}% of Savings Goal</Typography>
+        </Box>
+
+        <Box sx={{ maxWidth: '100%', overflowX: 'auto', marginBottom: 2 }}>
+          <Bar data={data} options={{ responsive: true, maintainAspectRatio: false, aspectRatio: 2 }} />
+        </Box>
+
+        <Grid container spacing={2} sx={{ marginTop: 2 }}>
+          <Grid item xs={6}>
+            <ModernButton variant="contained" color="primary" onClick={handleSaveData} fullWidth>
+              Save Data
+            </ModernButton>
+          </Grid>
+          <Grid item xs={6}>
+            <ModernButton variant="outlined" color="primary" onClick={handleNotification} fullWidth>
+              Check Finances
+            </ModernButton>
+          </Grid>
+        </Grid>
       </Box>
-
-      {/* Button to save user data */}
-      <Button variant="contained" color="primary" onClick={handleSaveData} sx={{ marginTop: 2 }}>
-        Save Data
-      </Button>
-
-      {/* Button to check financial status */}
-      <Button variant="outlined" onClick={handleNotification} sx={{ marginTop: 2 }}>
-        Check Finances
-      </Button>
-
-      {/* Button for logging out */}
-      <Button variant="text" color="error" onClick={handleLogout} sx={{ marginTop: 2 }}>
-        Logout
-      </Button>
-    </Box>
+    </ThemeProvider>
   );
 };
 
