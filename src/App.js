@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Route, Routes, Navigate } from 'react-router-dom'; // Use HashRouter instead of BrowserRouter
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Box } from '@mui/material'; // Import Box for flexbox layout
+import { Box } from '@mui/material';
 import Login from './Login';
 import SignUp from './SignUp';
 import Dashboard from './Dashboard';
 import Footer from './Footer';
-import Navbar from './Navbar';  // Import simplified Navbar
+import Navbar from './Navbar';
 
 const theme = createTheme({
   palette: {
-    primary: { main: '#1D71BA' },  // Light Blue
-    secondary: { main: '#EDC400' }, // Yellow
+    primary: { main: '#1D71BA' },
+    secondary: { main: '#EDC400' },
   },
   typography: {
     h4: { fontWeight: 600 },
@@ -32,7 +32,7 @@ function App() {
             minHeight: '100vh', // Ensure the container takes the full height of the viewport
           }}
         >
-          <Navbar />  {/* Simplified Navbar with just logo and heading */}
+          <Navbar /> {/* Navbar with simplified navigation */}
           <Box component="main" sx={{ flex: 1 }}>
             <Routes>
               {/* Login route */}
@@ -45,7 +45,7 @@ function App() {
               <Route path="/dashboard" element={user ? <Dashboard setUser={setUser} /> : <Navigate to="/" />} />
             </Routes>
           </Box>
-          <Footer /> {/* Footer will be at the bottom */}
+          <Footer /> {/* Footer at the bottom */}
         </Box>
       </Router>
     </ThemeProvider>
