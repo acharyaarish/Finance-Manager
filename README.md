@@ -1,7 +1,6 @@
 # 💰 Finance Manager
 
-A web-based personal finance management tool developed with **React** and **Firebase**. *Finance Manager* helps users monitor their income, manage expenses, and set achievable savings goals—all through a dynamic, intuitive interface.
-
+A web-based personal finance management tool developed with **React** and **Firebase**. *Finance Manager* helps users monitor their income, manage expenses, and set achievable savings goals—all through a simple easy to use User Interface(UI).
 ---
 <img width="1417" alt="Screenshot 2024-10-29 at 10 49 24 am" src="https://github.com/user-attachments/assets/126710bb-12a1-4fa3-a4f6-ece9e1689b30">
 <img width="1417" alt="Screenshot 2024-10-29 at 10 49 50 am" src="https://github.com/user-attachments/assets/4279c03d-6c20-4b54-9f86-acffcd27cd88">
