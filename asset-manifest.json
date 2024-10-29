@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/Finance-Manager/static/css/main.e6c13ad2.css",
+    "main.js": "/Finance-Manager/static/js/main.5b20687f.js",
+    "static/js/453.a94f25ee.chunk.js": "/Finance-Manager/static/js/453.a94f25ee.chunk.js",
+    "index.html": "/Finance-Manager/index.html",
+    "main.e6c13ad2.css.map": "/Finance-Manager/static/css/main.e6c13ad2.css.map",
+    "main.5b20687f.js.map": "/Finance-Manager/static/js/main.5b20687f.js.map",
+    "453.a94f25ee.chunk.js.map": "/Finance-Manager/static/js/453.a94f25ee.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.5b20687f.js"
+  ]
+}
